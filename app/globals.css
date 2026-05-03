@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+@layer base {
+  * {
+    @apply border-zinc-800;
+  }
+}
+
+/* Custom Safe Area for Mobile */
+.pb-safe-area {
+  padding-bottom: env(safe-area-inset-bottom);
+}
