@@ -1,7 +1,37 @@
+# dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# build / next
 .next/
+out/
+build/
+
+# testing
 coverage/
-.DS_Store
-*.log
-.env* 
+
+# environment variables
+.env*
 !.env.example
+
+# system files
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+npm-debug.log*
+
+# vercel
+.vercel
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# debug
+yarn-debug.log*
+yarn-error.log*

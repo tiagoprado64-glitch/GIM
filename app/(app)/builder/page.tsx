@@ -6,8 +6,6 @@ import { ArrowLeft, Save, Plus, Trash2, Sparkles, ChevronUp, ChevronDown, Info, 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { ai } from '@/lib/ai';
-import { Type } from "@google/genai";
 import type { Exercise } from '@/lib/types';
 
 const CATEGORIES = ['Peito/Tríceps', 'Costas/Bíceps', 'Pernas/Ombro', 'Full Body', 'Cardio', 'Abs'];
@@ -115,15 +113,14 @@ export default function WorkoutBuilder() {
   const generateAiExercises = async () => {
     setIsAiLoading(true);
     try {
-      if (!process.env.NEXT_PUBLIC_GEMINI_API_KEY) throw new Error('Chave de API Gemini não configurada');
       const profile = userData?.profile;
-      const profileInfo = profile ? `Perfil do Usuário: Gênero: ${profile.gender}, Idade: ${profile.age} anos, Peso: ${profile.weight}kg, Altura: ${profile.height}cm, Objetivo: ${profile.objective}, Frequência: ${profile.frequency} dias/semana` : '';
-      const prompt = `Gere um treino de academia detalhado e personalizado em Português. ${profileInfo} Nome do Treino Sugerido: ${name || 'Novo Treino'} Categoria: ${category} Objetivo: Sugira exercícios que façam sentido para esta categoria e perfil. Retorne um JSON com a lista de exercícios. Cada exercício deve ter: name (string), sets (number), reps (number), weight (number), restTime (number), videoUrl (string). Sugira de 5 a 8 exercícios.`;
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview", contents: prompt,
-        config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { exercises: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, sets: { type: Type.NUMBER }, reps: { type: Type.NUMBER }, weight: { type: Type.NUMBER }, restTime: { type: Type.NUMBER }, videoUrl: { type: Type.STRING } }, required: ["name", "sets", "reps", "weight", "restTime"] } } }, required: ["exercises"] } }
+      const res = await fetch('/api/generate-exercises', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category, name, profile }),
       });
-      const result = JSON.parse(response.text!);
+      if (!res.ok) throw new Error('Erro na API');
+      const result = await res.json();
       if (result.exercises && Array.isArray(result.exercises)) {
         setExercises(result.exercises.map((ex: any, i: number) => ({ id: Math.random().toString(36).substr(2, 9), name: ex.name || 'Exercício', sets: Number(ex.sets) || 3, reps: Number(ex.reps) || 10, weight: Number(ex.weight) || 0, restTime: Number(ex.restTime) || 60, videoUrl: ex.videoUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(ex.name + " workout execution")}`, order: i })));
         if (!name) setName(category + ' Sugerido');
@@ -136,12 +133,13 @@ export default function WorkoutBuilder() {
     setSwappingExerciseId(exercise.id);
     setIsAlternativeLoading(true);
     try {
-      const prompt = `Sugira 3 exercícios alternativos para: "${exercise.name}". Objetivo: Substituir o exercício por outro que trabalhe o mesmo grupo muscular. Para cada alternativa, retorne: name, sets, reps, weight, restTime, videoUrl. Retorne APENAS o JSON: { "alternatives": [...] }`;
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview", contents: prompt,
-        config: { responseMimeType: "application/json", responseSchema: { type: Type.OBJECT, properties: { alternatives: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { name: { type: Type.STRING }, sets: { type: Type.NUMBER }, reps: { type: Type.NUMBER }, weight: { type: Type.NUMBER }, restTime: { type: Type.NUMBER }, videoUrl: { type: Type.STRING } } } } } } }
+      const res = await fetch('/api/alternatives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ exerciseName: exercise.name }),
       });
-      const result = JSON.parse(response.text!);
+      if (!res.ok) throw new Error('Erro na API');
+      const result = await res.json();
       setAlternatives(result.alternatives.map((alt: any) => ({ ...alt, videoUrl: alt.videoUrl || `https://www.youtube.com/results?search_query=${encodeURIComponent(alt.name + " workout")}` })));
     } catch (error) { console.error('Alternative Error:', error); }
     finally { setIsAlternativeLoading(false); }
